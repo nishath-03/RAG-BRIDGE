@@ -36,16 +36,84 @@ function formatTime(iso: string): string {
   } catch { return '--:--:--'; }
 }
 
+// ─── Rich Markdown Card for BOT responses ──────────────────────────────────
+function RichBotMessage({ message }: { message: string }) {
+  return (
+    <div className={styles.richCard}>
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h1 className={styles.mdH1}>{children}</h1>,
+          h2: ({ children }) => <h2 className={styles.mdH2}>{children}</h2>,
+          h3: ({ children }) => <h3 className={styles.mdH3}>{children}</h3>,
+          p:  ({ children }) => <p  className={styles.mdPara}>{children}</p>,
+          ul: ({ children }) => <ul className={styles.mdUl}>{children}</ul>,
+          ol: ({ children }) => <ol className={styles.mdOl}>{children}</ol>,
+          li: ({ children }) => <li className={styles.mdLi}>{children}</li>,
+          hr: () => <hr className={styles.mdHr} />,
+          strong: ({ children }) => <strong className={styles.mdStrong}>{children}</strong>,
+          em:     ({ children }) => <em     className={styles.mdEm}>{children}</em>,
+          blockquote: ({ children }) => (
+            <blockquote className={styles.mdBlockquote}>{children}</blockquote>
+          ),
+          table: ({ children }) => (
+            <div className={styles.tableWrapper}>
+              <table className={styles.mdTable}>{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className={styles.mdThead}>{children}</thead>,
+          tbody: ({ children }) => <tbody>{children}</tbody>,
+          tr:    ({ children }) => <tr className={styles.mdTr}>{children}</tr>,
+          th:    ({ children }) => <th className={styles.mdTh}>{children}</th>,
+          td:    ({ children }) => <td className={styles.mdTd}>{children}</td>,
+          code({ inline, className, children, ...props }: {
+            inline?: boolean; className?: string; children?: React.ReactNode;
+          }) {
+            const match = /language-(\w+)/.exec(className || '');
+            if (!inline && match) {
+              return (
+                <div className={styles.codeBlockWrap}>
+                  <div className={styles.codeBlockHeader}>
+                    <span className={styles.codeLang}>{match[1]}</span>
+                  </div>
+                  <SyntaxHighlighter
+                    style={vscDarkPlus as Record<string, React.CSSProperties>}
+                    language={match[1]}
+                    PreTag="div"
+                    customStyle={{
+                      background: '#0d1117',
+                      border: 'none',
+                      borderRadius: '0 0 8px 8px',
+                      margin: 0,
+                      padding: '14px 16px',
+                      fontSize: '12.5px',
+                    }}
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                </div>
+              );
+            }
+            return <code className={styles.mdInlineCode} {...props}>{children}</code>;
+          },
+        }}
+      >
+        {message}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────
 export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: Props) {
-  const bottomRef  = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLInputElement>(null);
+  const bottomRef      = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  const [query, setQuery]       = useState('');
-  const [pending, setPending]   = useState(false);
+  const [query,     setQuery]     = useState('');
+  const [pending,   setPending]   = useState(false);
   const [listening, setListening] = useState(false);
 
-  // Auto-scroll to bottom on new logs
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     if (logs.length > 0) {
@@ -54,13 +122,8 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
     }
   }, [logs]);
 
-  // Clean up speech recognition on unmount
   useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
+    return () => { if (recognitionRef.current) recognitionRef.current.stop(); };
   }, []);
 
   const handleSend = useCallback(() => {
@@ -73,60 +136,28 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
   }, [query, socket, roomId, pending]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const toggleListening = () => {
-    if (listening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
-      return;
-    }
-
+    if (listening) { recognitionRef.current?.stop(); return; }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert('Use Chrome or Edge for voice input.'); return; }
     try {
-      const rec = new SpeechRecognition();
+      const rec = new SR();
       rec.continuous = false;
       rec.interimResults = false;
       rec.lang = 'en-US';
-
-      rec.onstart = () => {
-        setListening(true);
+      rec.onstart  = () => setListening(true);
+      rec.onresult = (e: any) => {
+        const t = e.results[0][0].transcript;
+        if (t.trim()) { setPending(true); socket?.emit('web_query', { roomId, question: t.trim() }); setQuery(''); }
       };
-
-      rec.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript.trim()) {
-          setPending(true);
-          socket?.emit('web_query', { roomId, question: transcript.trim() });
-          setQuery('');
-        }
-      };
-
-      rec.onerror = (err: any) => {
-        console.error('[Web Speech API] Error:', err);
-        setListening(false);
-      };
-
-      rec.onend = () => {
-        setListening(false);
-      };
-
+      rec.onerror = () => setListening(false);
+      rec.onend   = () => setListening(false);
       recognitionRef.current = rec;
       rec.start();
-    } catch (err) {
-      console.error('[Web Speech API] Setup failed:', err);
-      setListening(false);
-    }
+    } catch { setListening(false); }
   };
 
   return (
@@ -138,27 +169,20 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
           <span className={`${styles.dot} ${styles.dotAmber}`} />
           <span className={`${styles.dot} ${styles.dotGreen}`} />
         </div>
-        <span className={styles.titleText}>
-          antigravity-rag — room:{roomId} — live terminal
-        </span>
+        <span className={styles.titleText}>antigravity-rag — room:{roomId} — live terminal</span>
         <span className={styles.logCount}>{logs.length} entries</span>
       </div>
 
       {/* ── Boot Banner ───────────────────────────────────────────── */}
       <div className={styles.bootBanner}>
-        <pre className={styles.bootPre}>{`  ██████╗  █████╗  ██████╗     ██████╗ ██╗██████╗  ██████╗ ███████╗
-  ██╔══██╗██╔══██╗██╔════╝    ██╔══██╗██║██╔══██╗██╔════╝ ██╔════╝
-  ██████╔╝███████║██║  ███╗   ██████╔╝██║██║  ██║██║  ███╗█████╗  
-  ██╔══██╗██╔══██║██║   ██║   ██╔══██╗██║██║  ██║██║   ██║██╔══╝  
-  ██║  ██║██║  ██║╚██████╔╝   ██████╔╝██║██████╔╝╚██████╔╝███████╗
-  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝    ╚═════╝ ╚═╝╚═════╝  ╚═════╝ ╚══════╝`}</pre>
+        <pre className={styles.bootPre}>{`  ██████╗  █████╗  ██████╗     ██████╗ ██╗██████╗  ██████╗ ███████╗\n  ██╔══██╗██╔══██╗██╔════╝    ██╔══██╗██║██╔══██╗██╔════╝ ██╔════╝\n  ██████╔╝███████║██║  ███╗   ██████╔╝██║██║  ██║██║  ███╗█████╗  \n  ██╔══██╗██╔══██║██║   ██║   ██╔══██╗██║██║  ██║██║   ██║██╔══╝  \n  ██║  ██║██║  ██║╚██████╔╝   ██████╔╝██║██████╔╝╚██████╔╝███████╗\n  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝    ╚═════╝ ╚═╝╚═════╝  ╚═════╝ ╚══════╝`}</pre>
         <div className={styles.bootMeta}>
           <span>RAG-BRIDGE v1.0 · ROOM: <strong style={{ color: 'var(--accent)' }}>{roomId}</strong></span>
-          <span>IN-MEMORY RAG · GEMINI-1.5-FLASH · WEB CHAT + WEB VOICE</span>
+          <span>IN-MEMORY RAG · GEMINI-2.5-FLASH · WEB CHAT + WEB VOICE</span>
         </div>
       </div>
 
-      {/* ── Log Entries ───────────────────────────────────────────── */}
+      {/* ── Log Body ──────────────────────────────────────────────── */}
       <div className={styles.logBody} id="terminal-log-body" role="log" aria-live="polite">
         {logs.length === 0 && (
           <div className={styles.waiting}>
@@ -169,6 +193,22 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
 
         {logs.map((entry) => {
           const cfg = TYPE_CONFIG[entry.type];
+
+          // BOT → rich card
+          if (entry.type === 'BOT') {
+            return (
+              <div key={entry.id} className={styles.botBlock}>
+                <div className={styles.botBlockHeader}>
+                  <span className={styles.botAvatar}>⬡</span>
+                  <span className={styles.botLabel}>RAG-BRIDGE</span>
+                  <span className={styles.botTimestamp}>{formatTime(entry.timestamp)}</span>
+                </div>
+                <RichBotMessage message={entry.message} />
+              </div>
+            );
+          }
+
+          // USER / SYS / ERR → compact terminal row
           return (
             <div
               key={entry.id}
@@ -176,57 +216,23 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
             >
               <div className={styles.entryMeta}>
                 <span className={styles.timestamp}>{formatTime(entry.timestamp)}</span>
-                <span className={styles.typeTag} style={{ color: cfg.color }}>
-                  [{cfg.label}]
-                </span>
+                <span className={styles.typeTag} style={{ color: cfg.color }}>[{cfg.label}]</span>
               </div>
-              <div className={styles.entryContent}>
-                <ReactMarkdown
-                  components={{
-                    code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      if (!inline && match) {
-                        return (
-                          <SyntaxHighlighter
-                            style={vscDarkPlus as Record<string, React.CSSProperties>}
-                            language={match[1]}
-                            PreTag="div"
-                            customStyle={{
-                              background: '#0d0d0d',
-                              border: '1px solid rgba(255,255,255,0.08)',
-                              borderRadius: 4,
-                              margin: '8px 0',
-                              fontSize: '12px',
-                            }}
-                            {...props}
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        );
-                      }
-                      return <code className={styles.inlineCode} {...props}>{children}</code>;
-                    },
-                    p({ children }) {
-                      return <p className={styles.para}>{children}</p>;
-                    },
-                  }}
-                >
-                  {entry.message}
-                </ReactMarkdown>
-              </div>
+              <div className={styles.entryContent}>{entry.message}</div>
             </div>
           );
         })}
 
-        {/* Pending indicator */}
+        {/* Pending (typing) indicator */}
         {pending && (
-          <div className={styles.logEntry} key="pending">
-            <div className={styles.entryMeta}>
-              <span className={styles.timestamp}>{formatTime(new Date().toISOString())}</span>
-              <span className={styles.typeTag} style={{ color: '#60a5fa' }}>[BOT]</span>
+          <div className={styles.botBlock}>
+            <div className={styles.botBlockHeader}>
+              <span className={styles.botAvatar}>⬡</span>
+              <span className={styles.botLabel}>RAG-BRIDGE</span>
+              <span className={styles.botTimestamp}>{formatTime(new Date().toISOString())}</span>
             </div>
-            <div className={`${styles.entryContent} ${styles.pendingDots}`}>
-              <span /><span /><span />
+            <div className={`${styles.richCard} ${styles.pendingCard}`}>
+              <div className={styles.pendingDots}><span /><span /><span /></div>
             </div>
           </div>
         )}
@@ -238,16 +244,14 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
       <div className={styles.chatBar}>
         <span className={styles.chatPrompt} aria-hidden="true">
           <span style={{ color: 'var(--accent)' }}>▸</span>
-          <span style={{ color: 'var(--text-dim)', marginLeft: 4 }}>
-            room@{roomId.toLowerCase()}:~$
-          </span>
+          <span style={{ color: 'var(--text-dim)', marginLeft: 4 }}>room@{roomId.toLowerCase()}:~$</span>
         </span>
         <input
           ref={inputRef}
           id="chat-input"
           className={styles.chatInput}
           type="text"
-          placeholder={listening ? 'Listening... Speak now.' : socket ? 'Ask a question or click 🎙️...' : 'Connecting...'}
+          placeholder={listening ? 'Listening… Speak now.' : socket ? 'Ask a question or click 🎙️…' : 'Connecting…'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -256,8 +260,6 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
           spellCheck={false}
           aria-label="Chat input"
         />
-        
-        {/* Web Speech API Microphone button */}
         <button
           id="chat-mic-btn"
           className={`${styles.micBtn} ${listening ? styles.micBtnListening : ''}`}
@@ -266,13 +268,8 @@ export default function TerminalLog({ logs, roomId, socket, voiceChatActive }: P
           title={voiceChatActive ? 'Voice Chat mode is active' : listening ? 'Stop listening' : 'Start voice recognition'}
           aria-label="Toggle voice input"
         >
-          {listening ? (
-            <span className={styles.pulsingRedDot} />
-          ) : (
-            '🎙️'
-          )}
+          {listening ? <span className={styles.pulsingRedDot} /> : '🎙️'}
         </button>
-
         <button
           id="chat-send-btn"
           className={`${styles.sendBtn} ${pending ? styles.sendBtnPending : ''}`}
