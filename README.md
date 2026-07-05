@@ -8,50 +8,102 @@
 
 ---
 
-## Architecture
+## 1. Problem Statement
+In modern development workflows, teams spend significant time searching through project documentations, API guides, and codebases. Standard LLMs lack this proprietary context, while traditional RAG chat interfaces are restricted to web pages that require manual text entry. RAG-BRIDGE solves this by combining web UI chat with a hands-free Discord Voice channel assistant. Users can upload documentation in real-time, step into a voice room with teammates, ask questions aloud, and receive spoken AI answers sourced strictly from their uploaded documents, all with a zero-cost Bring-Your-Own-Key (BYOK) model.
+
+## 2. Technology Stack
+*   **Language**: JavaScript (Node.js & TypeScript)
+*   **Frontend**: Next.js 14 (React) with CSS Modules
+*   **Backend**: Node.js & Express.js
+*   **Real-time Communication**: Socket.IO (WebSockets)
+*   **Database**: None (Zero-database architecture). Uses an in-memory document parsing, indexing, and TF-IDF search map to process contexts.
+*   **LLM API**: Google Gemini API (instantiated dynamically with the user's API Key)
+*   **Speech Services**: Deepgram API (live WebSocket-based Speech-to-Text) & Microsoft Edge TTS (Text-to-Speech)
+*   **Deployment Platforms**: Next.js on **Vercel** (Serverless) and Express server/Discord Bot on **Railway** (Persistent Node instance)
+
+## 3. Architecture
+RAG-BRIDGE uses a split frontend-backend layout to balance low-latency serverless rendering with persistent event listening.
+
+*   **Frontend-Backend Sync**: The frontend (Next.js) connects to the backend (Express) using Socket.IO. When the user types or speaks, text events and state logs stream bi-directionally. REST APIs are used only for file uploads and room initialization.
+*   **LLM & Prompt Engine**: The backend interacts with the Gemini API. When a query comes in, the server compiles the prompt using the dynamically retrieved document context chunks, wraps it with custom system prompts, and calls the Google Generative AI SDK using the user's key.
+*   **In-Memory Storage**: Room sessions, uploaded files, and TF-IDF text indices are stored inside a global `activeSessions` Javascript Map object. All uploads are deleted or wiped on server restarts, maintaining total security.
 
 ```
-Web App (Next.js :3000) ◄── Socket.IO ──► Server (Express :3001)
-                                                     │
-                                          ┌──────────┴──────────┐
-                                          │  activeSessions{}   │
-                                          │  (in-memory map)    │
-                                          └──────────┬──────────┘
-                                                     │
-                                          Discord Bot (discord.js)
-                                               │          │
-                                          Deepgram      Edge-TTS
-                                           (STT)        (voice out)
+┌─────────────────────────────────┐
+│        Next.js Frontend         │ (Vercel)
+└────────────────┬────────────────┘
+                 │
+             Socket.IO (WebSocket)
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│         Express Server          │ (Railway)
+│  ┌───────────────────────────┐  │
+│  │     activeSessions{}      │  │
+│  │ (In-Memory Room Sessions) │  │
+│  └─────────────┬─────────────┘  │
+└────────────────┼────────────────┘
+                 │
+                 ├───────────────────────────────┐
+                 ▼                               ▼
+    ┌──────────────────────────┐    ┌──────────────────────────┐
+    │       Discord Bot        │    │       RAG Engine         │
+    │   (discord.js/voice)     │    │  (TF-IDF / Cosine Sim)   │
+    └──────┬────────────┬──────┘    └──────────────────────────┘
+           │            │
+           ▼            ▼
+     Deepgram STT   Edge-TTS
 ```
+
+## 4. Workflow
+1.  **Document Upload**: The user drops files (`.pdf`, `.txt`, `.py`, `.js`, etc.) into the Next.js UI. The files are uploaded to the Express server, chunked into blocks, vectorized using a custom TF-IDF calculation, and stored in-memory.
+2.  **Voice Query Ingest**: When a speaker in the paired Discord channel talks, the bot pipes raw PCM audio stream packets to Deepgram's live WebSocket API.
+3.  **Transcription & RAG**: Deepgram returns a text transcription. The server routes this transcript to the custom RAG engine, which performs a cosine similarity lookup against all document chunks in that room to find the top-k relevant fragments.
+4.  **Inference & Playback**: The server injects the context chunks into the Gemini prompt template, calls the Gemini model, and receives the response. The text is sent to the Next.js UI terminal via Socket.IO, and concurrently converted into speech via Edge TTS to play into the Discord voice channel.
+
+## 5. Prompt Engineering
+RAG-BRIDGE dynamically adjusts its system prompting depending on the document contexts. For example, if it detects database schemas or SQL statements, it switches the model persona to a database engineer:
+
+```javascript
+function buildPrompt(question, contextChunks, systemPrompt) {
+  const isSqlContext = detectSqlContext(contextChunks);
+  const defaultSys = isSqlContext
+    ? `You are an expert SQL data analyst and database engineer... Write correct, optimized SQL queries wrapped in triple-backtick sql blocks.`
+    : `You are an expert AI knowledge assistant... Answer accurately using context. Cite specific chunks like [Chunk N].`;
+
+  const sys = systemPrompt || defaultSys;
+  const contextBlock = contextChunks.map((chunk, i) => `[Document Chunk ${i + 1}]\n${chunk}`).join('\n\n---\n\n');
+
+  return `${sys}
+=== DOCUMENT CONTEXT ===
+${contextBlock}
+
+=== USER QUESTION ===
+${question}
+
+=== RESPONSE INSTRUCTIONS ===
+- Cite the sources. If information is missing, state it clearly.`;
+}
+```
+
+## 6. Deployment
+*   **Vercel**: Deploys the Next.js `/frontend` using settings declared in `vercel.json`.
+*   **Railway**: Runs the `/server` directory containing the persistent Socket.IO server and Discord gateway listener, guided by `server/railway.json`.
+*   **Docker Compose**: A root `docker-compose.yml` mounts a containerized environment locally, linking multi-stage Dockerfiles in the `/server` and `/frontend` folders.
 
 ---
 
 ## Quick Start
 
-### 1. Prerequisites
-
-| Tool | Version |
-|------|---------|
-| Node.js | ≥ 18 |
-| npm | ≥ 9 |
-
-### 2. Clone & Install
-
+### 1. Clone & Install
 ```bash
-cd y:\RAG_AGENT
 npm install          # installs concurrently in root
 cd server && npm install
 cd ../frontend && npm install
 ```
 
-### 3. Configure Environment
-
-```bash
-cp server/.env.example server/.env
-```
-
-Edit `server/.env`:
-
+### 2. Configure Environment
+Create `server/.env`:
 ```env
 DISCORD_TOKEN=your_discord_bot_token
 DISCORD_CLIENT_ID=your_discord_application_id
@@ -60,125 +112,8 @@ PORT=3001
 FRONTEND_URL=http://localhost:3000
 ```
 
-#### Getting Your Keys
-
-| Key | Where to get it |
-|-----|----------------|
-| **Discord Bot Token** | [discord.com/developers](https://discord.com/developers/applications) → New Application → Bot → Reset Token |
-| **Discord Client ID** | Same page → General Information → Application ID |
-| **Deepgram API Key** | [deepgram.com](https://console.deepgram.com) → Create API Key (free $200 credit) |
-| **Gemini API Key** | [aistudio.google.com](https://aistudio.google.com/app/apikey) → entered per room in the web UI |
-
-#### Discord Bot Permissions Required
-
-In the Discord Developer Portal, under **Bot**, enable:
-- ✅ `Message Content Intent`
-- ✅ `Server Members Intent`
-
-**OAuth2 Scopes:** `bot`, `applications.commands`
-**Bot Permissions:** `Send Messages`, `Connect`, `Speak`, `Use Voice Activity`
-
-### 4. Run Development Servers
-
+### 3. Run Development Servers
 ```bash
-# From y:\RAG_AGENT root — runs both in parallel
 npm run dev
-
-# Or separately:
-npm run dev:server    # Express server on :3001
-npm run dev:frontend  # Next.js on :3000
 ```
-
----
-
-## Usage Flow
-
-### 1. Web App — Create a Room
-
-1. Open `http://localhost:3000`
-2. Click **Initialize Workspace**
-3. Upload documents (`.txt`, `.js`, `.py`, `.java`, `.ts`, `.pdf`, `.md`)
-4. Paste your **Google Gemini API Key**
-5. Click **Deploy Room** → a 6-digit **Room ID** appears
-6. The workspace opens with live terminal + document manager
-
-### 2. Discord Bot — Connect to Voice
-
-1. Join a Discord voice channel
-2. In any text channel, type:
-   ```
-   !connect ABC123
-   ```
-   *(replace `ABC123` with your Room ID)*
-3. The bot joins the voice channel and maps it to your room
-
-### 3. Live Q&A
-
-- **Speak** your question in the Discord voice channel
-- The bot transcribes via Deepgram, retrieves context from your documents, queries Gemini
-- The answer **streams to your web terminal** + the bot **speaks back** via Edge-TTS
-- If the bot is mid-speech and you start talking, it **stops and listens immediately**
-
----
-
-## Project Structure
-
-```
-y:\RAG_AGENT\
-├── package.json              ← root (npm workspaces + concurrently)
-├── server/
-│   ├── .env.example
-│   ├── package.json
-│   └── src/
-│       ├── index.js          ← Express + Socket.IO entry
-│       ├── sessionStore.js   ← In-memory room map
-│       ├── fileProcessor.js  ← PDF/text chunker
-│       ├── ragEngine.js      ← TF-IDF cosine similarity search
-│       ├── geminiClient.js   ← BYOK Gemini gateway
-│       ├── discordBot.js     ← Full Discord voice engine
-│       └── routes/
-│           └── room.js       ← REST API: create/upload/status
-└── frontend/
-    ├── package.json
-    ├── next.config.js
-    └── app/
-        ├── layout.tsx
-        ├── page.tsx          ← 3-state view machine
-        ├── globals.css       ← Design system tokens
-        └── components/
-            ├── LandingView.tsx      ← ASCII logo + typewriter
-            ├── SetupView.tsx        ← File drop + API key
-            ├── WorkspaceView.tsx    ← Socket.IO + split pane
-            ├── DocumentManager.tsx  ← Left pane: file chunks
-            └── TerminalLog.tsx      ← Right pane: live log
-```
-
----
-
-## API Reference
-
-| Endpoint | Method | Body | Description |
-|----------|--------|------|-------------|
-| `/api/room/create` | POST | `{ geminiKey }` | Create room, returns `{ roomId }` |
-| `/api/room/:id/upload` | POST | `FormData (files[])` | Upload & vectorize files |
-| `/api/room/:id/status` | GET | — | Room metadata |
-| `/health` | GET | — | Server health |
-
-### Socket.IO Events (server → client)
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `sys_log` | `{ type, message, timestamp }` | System messages |
-| `transcript` | `{ type, message, timestamp }` | User voice transcript |
-| `bot_response` | `{ type, message, timestamp }` | Gemini answer |
-| `auth_error` | `{ type, message, timestamp }` | Gemini key error |
-| `file_processed` | `{ name, chunkCount }` | File vectorization done |
-
----
-
-## Security Notes
-
-- Gemini API keys are **never logged** or persisted — stored only in the in-memory `activeSessions` map
-- The session summary endpoint (`/status`) explicitly omits the API key
-- All sessions are **lost on server restart** (by design — zero persistence)
-- CORS is restricted to `FRONTEND_URL` only
+Open `http://localhost:3000` to start creating workspaces.
