@@ -61,7 +61,7 @@ function createDeepgramLiveSession(onTranscript, onError) {
     language: 'en-US',
     smart_format: true,
     interim_results: false,
-    endpointing: 300,
+    endpointing: 1500, // wait 1.5s of silence before finalising transcript
   });
 
   live.on(LiveTranscriptionEvents.Open, () => {
@@ -230,7 +230,7 @@ async function connectToVoiceChannel(voiceChannel, textChannel, roomId) {
     console.log(`[Discord] User ${userId} started speaking.`);
 
     const audioStream = receiver.subscribe(userId, {
-      end: { behavior: EndBehaviorType.AfterSilence, duration: 1000 },
+      end: { behavior: EndBehaviorType.AfterSilence, duration: 2000 }, // 2s silence to end stream
     });
 
     // Open Deepgram live session
