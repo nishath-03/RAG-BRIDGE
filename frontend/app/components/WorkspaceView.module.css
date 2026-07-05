@@ -1,0 +1,355 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+/* ─── Top Bar ─────────────────────────────────────────── */
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brandIcon {
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.brandText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+}
+
+.roomMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.roomLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+}
+
+.roomId {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+
+.statusPills {
+  display: flex;
+  gap: 8px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1px solid;
+}
+
+.pillGreen {
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.pillRed {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-glow-sm);
+}
+
+.pillAmber {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.pillMuted {
+  color: var(--text-dim);
+  border-color: var(--border-default);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.interactivePill {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.interactivePill:hover {
+  border-color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pillStop {
+  color: #f97316;
+  border-color: rgba(249, 115, 22, 0.4);
+  background: rgba(249, 115, 22, 0.08);
+  animation: pulseBorder 1s ease-in-out infinite;
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(249, 115, 22, 0.4); }
+  50%       { border-color: rgba(249, 115, 22, 0.9); }
+}
+
+/* ─── Discord Hint Badge (top bar) ──────────────────── */
+.discordHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: rgba(255,255,255,0.03);
+  animation: fadeIn 0.2s ease;
+}
+
+.hintClose {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 9px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  line-height: 1;
+  margin-left: 2px;
+  transition: color 100ms;
+}
+.hintClose:hover { color: var(--accent); }
+
+/* ─── Auth Error Banner ────────────────────────────────── */
+.authBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: rgba(255, 0, 51, 0.1);
+  border-bottom: 1px solid var(--accent-border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+  animation: fadeIn 0.2s ease;
+}
+
+.dismissBtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.7;
+  transition: opacity 150ms;
+  padding: 2px 6px;
+}
+.dismissBtn:hover { opacity: 1; }
+
+/* Pairing hint row removed — hint is now in the top bar */
+
+/* ─── Split Pane ───────────────────────────────────────── */
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: 300px 1px 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.leftPane {
+  overflow-y: auto;
+  background: var(--bg-surface);
+}
+
+.rightPane {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.verticalDivider {
+  background: var(--border-default);
+  width: 1px;
+}
+
+@media (max-width: 860px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 240px 1px 1fr;
+  }
+  .verticalDivider {
+    width: 100%;
+    height: 1px;
+  }
+  .topBar {
+    flex-wrap: wrap;
+  }
+}
+
+/* ─── Sidebar Tabs ───────────────────────────────────── */
+.tabHeaders {
+  display: flex;
+  background: #090909;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.tabHeader {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.tabHeader:hover {
+  color: var(--text-muted);
+}
+
+.tabActive {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+  background: rgba(255, 0, 51, 0.02);
+}
+
+/* ─── Config Panel ────────────────────────────────────── */
+.configContainer {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-surface);
+  height: calc(100% - 37px); /* Subtract tabHeaders height */
+  overflow-y: auto;
+}
+
+.configTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.configField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.configLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sliderLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sliderVal {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.sliderInput {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--border-strong);
+  outline: none;
+  border-radius: 99px;
+  cursor: pointer;
+}
+
+.sliderInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: transform var(--transition-fast);
+}
+
+.sliderInput::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.textareaInput {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.textareaInput:focus {
+  border-color: var(--accent-border);
+}
+
+.applyBtn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 11px;
+}

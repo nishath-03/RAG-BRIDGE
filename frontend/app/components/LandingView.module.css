@@ -1,0 +1,192 @@
+.container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+/* ─── Grid pattern ──────────────────────────────────── */
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border-default) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-default) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 20%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ─── Scanline ────────────────────────────────────────── */
+.scanline {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.3) 2px,
+    rgba(0, 0, 0, 0.3) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.3;
+}
+
+/* ─── Glow vignette ──────────────────────────────────── */
+.container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 50%,
+    rgba(255, 0, 51, 0.04) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* ─── Content ─────────────────────────────────────────── */
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 40px 24px;
+  max-width: 960px;
+  width: 100%;
+}
+
+/* ─── ASCII Logo ──────────────────────────────────────── */
+.asciiLogo {
+  font-family: var(--font-mono);
+  font-size: clamp(4px, 1.1vw, 11px);
+  line-height: 1.2;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(255, 0, 51, 0.5);
+  white-space: pre;
+  overflow: hidden;
+  letter-spacing: 0.02em;
+  animation: fadeIn 0.8s ease forwards;
+}
+
+/* ─── Sub-brand ───────────────────────────────────────── */
+.subBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  animation: fadeIn 0.8s 0.2s ease both;
+}
+
+.node  { color: var(--text-primary); font-weight: 700; }
+.rag   { color: var(--accent); font-weight: 700; }
+.dash  { color: var(--text-dim); }
+.version {
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+}
+
+/* ─── Tagline ─────────────────────────────────────────── */
+.tagline {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-muted);
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  animation: fadeIn 0.6s 0.4s ease both;
+}
+
+/* ─── Separator ───────────────────────────────────────── */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 500px;
+  animation: fadeIn 0.6s 0.5s ease both;
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.sepLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--text-dim);
+}
+
+/* ─── Feature Pills ───────────────────────────────────── */
+.features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  animation: fadeIn 0.6s 0.6s ease both;
+}
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-default);
+  border-radius: 99px;
+  color: var(--text-dim);
+  transition: all 150ms ease;
+}
+
+.pill:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* ─── CTA Button ──────────────────────────────────────── */
+.ctaBtn {
+  padding: 14px 36px;
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  animation: fadeIn 0.6s 0.8s ease both;
+  box-shadow: var(--shadow-glow);
+}
+
+.ctaBtn:hover {
+  box-shadow: var(--shadow-glow-lg);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ─── Status Bar ──────────────────────────────────────── */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  animation: fadeIn 0.6s 1s ease both;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusDivider { color: var(--border-strong); }

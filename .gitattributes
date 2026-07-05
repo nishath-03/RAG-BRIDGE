@@ -1,0 +1,12 @@
+# Normalize line endings to LF in the repository
+* text=auto eol=lf
+
+# Windows-specific scripts keep CRLF
+*.bat text eol=crlf
+
+# Binary files — no conversion
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.woff binary

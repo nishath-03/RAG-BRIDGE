@@ -1,0 +1,19 @@
+{
+  "name": "antigravity-node-rag-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-time hybrid Web App + Discord Voice Agent with BYOK RAG pipeline",
+  "workspaces": [
+    "server",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=server",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "install:all": "npm install --workspaces",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
